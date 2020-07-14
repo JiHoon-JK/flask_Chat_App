@@ -5,15 +5,14 @@
 	<title>My Chat App</title>
 </head>
 <body>
-	
-	<h1>Login</h1>
+	<h1>Create Room</h1>
 	<h3>{{message}}</h3>
-	<form method="POST" action="/login">
-		<label>Username:</label>
-		<input type="text" name="username">
+	<form method="POST" action="/create-room">
+		<label>Room Name:</label>
+		<input type="text" name="room_name">
 		<br>
-		<label>Password:</label>
-		<input type="password" name="password">
+		<label>Members:</label>
+		<input type="text" name="members">
 		<br>
 		<button type="submit">Submit</button>
 	</form>

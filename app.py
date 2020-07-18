@@ -4,8 +4,9 @@ from flask import Flask, render_template, request, redirect, url_for
 from flask_login import LoginManager, current_user, login_user, login_required, logout_user
 from flask_socketio import SocketIO, join_room
 
-from db import get_user, save_user
+from db import get_user, save_user, save_room , get_rooms_for_user, add_room_members, get_room, is_room_member, get_room_members
 from pymongo.errors import DuplicateKeyError
+
 
 app = Flask(__name__)
 app.secret_key = "JH key"
@@ -16,11 +17,13 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-
-# 메인 페이지
 @app.route('/')
 def home():
-	return render_template('index.html')
+	rooms = []
+	if current_user.is_authenticated:
+		# db.py 에서 get_rooms_for_user 함수를 사용해서, 채팅방에 대한 정보를 가져온다.
+		rooms = get_rooms_for_user(current_user.username)
+	return render_template('index.html ', rooms=rooms)
 
 # 로그인
 @app.route('/login', methods=['GET','POST'])
@@ -82,35 +85,47 @@ def logout():
 @login_required
 def create_room():
 
+	message = ''
+
 	if request.method == 'POST':
 		room_name = request.form.get('room_name')
-		members = [username.strip() for username in request.form.get('members').split(',')]
-
+		usernames = [username.strip() for username in request.form.get('members').split(',')]
+		print(usernames)
 		if len(room_name) and len(usernames):
 			room_id =save_room(room_name, current_user.username)
 
 			if current_user.username in usernames:
 				usernames.remove(current_user.username)
-				# 26분 45초 여기까지!
-				add_room_members()
+				print(room_id)
+				print(room_name)
+				print(usernames)
+				print(current_user.username)
+				add_room_members(room_id, room_name, usernames, current_user.username)
+				return redirect(url_for('view_room'),room_id = room_id)
+			else:
+				message = "Failed to create room"
 
 
-	return render_template('create_room.html')
+	return render_template('create-room.html', message=message)
 
-@app.route('/chat')
+@app.route('/rooms/<room_id>/')
 # login 이 되어있어야 이동할 수 있음.
 @login_required
-def chat():
-	# url로 보낸, 시용자의 데이터를 전달받아서 /chat 으로 전달. 
-	username = request.args.get('username')
-	room = request.args.get('room')
-
-	# username 과 room 이 있다면, chat.html으로 보내기
-	if username and room:
-		return render_template('chat.html', username=username, room=room)
-	# 둘중에 하나라도 없다면, 다시 home으로 이동
+def view_room(room_id):
+	room = get_room(room_id)
+	print(room)
+	print(room_id)
+	print(current_user.username)
+	if room and is_room_member(room_id,current_user.username):
+		room_members = get_room_members(room_id)
+		print(room_members)
+		# 2020.07.17 여기까지 완료
+		# username 부분이 채팅화면으로 들어갔을 때, 제대로 데아터를 가지고 오지 못하는 오류가 발생
+		return render_template('view_room.html', room = room, room_members = room_members, username=username)
 	else:
-		return redirect(url_for('home'))
+		return "Room not found", 404
+
+
 
 #  메세지를 보내는 handler
 @socketio.on('send_message')
@@ -124,6 +139,7 @@ def handle_send_message_event(data):
 @socketio.on('join_room')
 def handle_join_room_event(data):
 	# 파이참의 터미널 창에, 체크할 수 있게 나오도록 하는 구문.
+	print(data)
 	app.logger.info("{} has joined the rooms {}".format(data['username'], data['room']))
 	# socket.io 에 있는 라이브러리 join_room 을 활용해서 사용자가 작성한 room 넘버로 들어감.
 	join_room(data['room'])

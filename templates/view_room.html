@@ -6,7 +6,7 @@
 	<title>My Chat Apps</title>
 </head>
 <body>
-	<h1>Welcome to chat room {{room}}</h1>
+	<h1>Welcome to chat room: {{room.name}}</h1>
 
 	<div id="messages"></div>
 
@@ -27,7 +27,7 @@
 		// 'join_room' 이라는 socketio 로 username과 room 정보를 담은 데이터셋 보내기 
 		socket.emit('join_room', {
 			username:"{{username}}",
-			room:"{{room}}"
+			room:"{{room._id}}"
 		});
 
 		// 입력한 메세지를 message_input 변수에 담기
@@ -43,7 +43,7 @@
 				socket.emit('send_message', {
 					// send_message 로 username / room / message 를 보낸다.
 					username:"{{username}}",
-					room:"{{room}}",
+					room:"{{room._id}}",
 					message: message
 				})
 			}
@@ -52,6 +52,13 @@
 			message_input.focus();
 		}
 	});
+
+	window.onbeforeunload = function(){
+		socket.emit('leave_room', {
+			username:"{{username}}",
+			room:"{{room._id}}"
+		})
+	}
 
 	// receive_message 에 함수 data를 보낸다. 
 	socket.on('receive_message', function(data){
